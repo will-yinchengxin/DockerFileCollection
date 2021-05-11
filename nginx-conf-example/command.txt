@@ -1,0 +1,73 @@
+windows下安装nginx
+    安装nginx
+    到nginx官网下载页下载http://nginx.org/en/download.html，下载windows稳定版本，下载的是个压缩包，解压到web文件夹内。
+
+    软件配置：打开 conf目录下nginx.conf 文件，详情可查看原文
+
+    nginx是不能直接解析php代码的，它是用到了 fastcgi 来解析php代码。相关原理可以参考这篇博客：
+    nginx动态解析php原理：
+    https://blog.csdn.net/aloha12/article/details/88852714
+    接下来修改下 location 块（还是在nginx.conf这个文件），以用来解析 php。
+
+    首先把 location 配置块前面的 # 注释删除，然后修改 fastcgi_param ，将
+
+    /scripts$fastcgi_script_name
+    修改为
+
+    $document_root$fastcgi_script_name
+    注意前面的 fastcgi_pass 127.0.0.1:9000。如果等接下来安装完 php 环境后，在浏览器里执行 localhost/index.html 成功，但是执行 localhost/index.php 总是失败的话，有可能是 9000 端口被占用了，我装了两台电脑都是9000端口被占用了。这个时候需要更换其他未被占用的端口。
+    这样这两个配置块就完成了。
+    现在启动 nginx 。在 nginx 目录运行命令行(不是管理员方式也可以)，然后执行命令：
+
+    start nginx
+    没有提示错误的话，在浏览器里访问 localhost 或者 127.0.0.1 ，如果成功显示 Welcome 那么表示 nginx 已经成功启动了
+
+windows下安装php
+    php官网：https://www.php.net/
+
+    下载也是个压缩包，也解压到web文件夹
+
+    配置：
+    然后将php目录中的 php.ini-development 拷贝一份，修改名字为 php.ini
+    打开 php.ini 在其中找到
+    ;extension_dir = "ext"
+    ;cgi.fix_pathinfo=1
+    ;fastcgi.impersonate = 1
+    enable_dl = Off 改成enable_dl = On
+    ;cgi.force_redirect = 1
+    将前面有分号的删除分号，将 enable_dl = Off 改成 enable_dl = On。
+
+    将 cgi.force_redirect 前面的分号删除并将值改为 0
+    为了启用 mysqli 扩展，php连接mysql的时候会用到。找到下面两行配置将分号删除。
+
+    ;extension=pdo_mysql
+    ;extension=mysqli
+    其实上面打开了多东西，如果只是运行下php代码时是不需要打开的。
+    下面开始运行 php-cgi 让其和 nginx 关联起来。在 php 目录运行命令行，执行命令：
+
+    php-cgi.exe -b 127.0.0.1:9000 -c php.ini
+    注意在 nginx fastcgi 配置里说过的9000端口，这里的端口号要和那里的端口号保持一致，如果fastcgi那里你已经修改过，这里运行命令时输入的端口要保持一致。
+    输入完命令后，命令行就不会再往下执行了，不出错的话就表示 php-cgi 已经执行成功。如果上面配置 nginx 时运行的 nginx 没有关闭的话，这个时候就可以在浏览器里输入
+
+    localhost/index.php
+    注意这里的 index.php 是在配置安装nginx时我们在 html 目录创建的文件，其内容如下
+
+    <?php
+        phpinfo();
+    ?>
+    如果成功那么在浏览器页面就会显示 phpinfo 。
+
+
+出现问题:
+    1.nginx: [error] invalid PID number "" in "/run/nginx.pid"
+        需要先执行
+        nginx -c /etc/nginx/nginx.conf
+        nginx.conf文件的路径可以从nginx -t的返回中找到。
+        nginx -s reload
+
+    2. php-cgi.exe -b 127.0.0.1:9000 -c php.ini 启动命令
+
+    3.nginx: [alert] could not open error log file: CreateFile() "logs/error.log" failed (3: The system cannot find the path specified)
+    2021/05/11 10:37:06 [emerg] 14488#10900: CreateFile() "C:\Users\Administrator/conf/mime.types" failed (2: The system cannot find the file specified) in C:\Users\Administrator/conf/nginx.conf:18
+
+        此时进入nginx 的安装目录执行命令即可
