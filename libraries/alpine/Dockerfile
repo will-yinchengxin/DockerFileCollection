@@ -10,6 +10,8 @@ RUN set -ex \
     && rm -rf /var/cache/apk/* \
     && rm -rf /tmp/*
 
+# 重置镜像源
+RUN sed -i 's@http://dl-cdn.alpinelinux.org/@https://mirrors.aliyun.com/@g' /etc/apk/repositories
 # 安装 bash shell
 RUN apk update \
     && apk upgrade \
@@ -17,7 +19,6 @@ RUN apk update \
     && apk add bash-doc \
     && apk add bash-completion
 # 安装常用网络连接工具
-RUN sed -i 's@http://dl-cdn.alpinelinux.org/@https://mirrors.aliyun.com/@g' /etc/apk/repositories
 RUN apk add --no-cache --virtual .persistent-deps \
                 curl \
 		        tcpdump \
@@ -28,12 +29,27 @@ RUN apk add --no-cache --virtual .persistent-deps \
                 libressl \
                 openssh-client \
 		        busybox \
-		        vim \
-		        openssh
+		        vim
 
-# 暴漏端口号
+# docker容器中开启ssh登陆，注意修改里面的root用户密码
+RUN apk add openssh-server && \
+    apk add openssh && \
+    sed -i "s/#PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config && \
+    sed -i "s/#Port.*/Port 22/g" /etc/ssh/sshd_config && \
+    ssh-keygen -t dsa -P "" -f /etc/ssh/ssh_host_dsa_key && \
+    ssh-keygen -t rsa -P "" -f /etc/ssh/ssh_host_rsa_key && \
+    ssh-keygen -t ecdsa -P "" -f /etc/ssh/ssh_host_ecdsa_key && \
+    ssh-keygen -t ed25519 -P "" -f /etc/ssh/ssh_host_ed25519_key && \
+    echo "root:root" | chpasswd
+
+# 暴漏一些端口号
 EXPOSE 22
 EXPOSE 80
 EXPOSE 8080
 
-CMD  [ "tail", "-f" ]
+# 启动SSH
+# 进入  vim /etc/ssh/ssh_config 查看/修改 配置
+CMD [ "/usr/sbin/sshd" ,  "-D" ]
+
+# 构建命令 docker build -t alpine/alpine:v1 .
+# 启动容器 docker run -itd -p 8010:22 -p 8080:80 --name myAlpine alpine/alpine:v1
