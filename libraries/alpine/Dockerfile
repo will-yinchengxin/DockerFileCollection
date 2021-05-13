@@ -21,15 +21,15 @@ RUN apk update \
 # 安装常用网络连接工具
 RUN apk add --no-cache --virtual .persistent-deps \
                 curl \
-		        tcpdump \
+		tcpdump \
                 iproute2 \
                 bind-tools \
                 ethtool \
                 busybox-extras \
                 libressl \
                 openssh-client \
-		        busybox \
-		        vim
+		busybox \
+		vim
 
 # docker容器中开启ssh登陆，注意修改里面的root用户密码
 RUN apk add openssh-server && \
