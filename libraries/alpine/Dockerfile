@@ -41,7 +41,10 @@ RUN apk add openssh-server && \
     ssh-keygen -t ecdsa -P "" -f /etc/ssh/ssh_host_ecdsa_key && \
     ssh-keygen -t ed25519 -P "" -f /etc/ssh/ssh_host_ed25519_key && \
     echo "root:root" | chpasswd
-    
+
+# 安装man
+# RUN apk add man man-pages mdocml-apropos less less-doc 
+
 # 将默认的shell改成bash的方法:
 # rm /bin/ash // alpine下默认的shell为 ash:
 # ln -s /bin/bash /bin/ash
