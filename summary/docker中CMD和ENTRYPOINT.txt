@@ -1,0 +1,93 @@
+Dockerfile中 ENTRYPOINT 和 CMD 命令区别
+    - Dockerfile中的ENTRYPOINT指令和CMD指令都可以设置容器启动时要执行的命令
+
+    exec 模式和 shell 模式:
+        exec模式:
+            使用 exec 模式时，容器中的任务进程就是容器内的 1 号进程
+            FROM ubuntu
+            CMD [ "top" ]
+
+            使用镜像:
+                $ docker build -t will/test .           # 这里的 . 是必不可少的
+                $ docker run -idt --name test will/test
+
+            获取容器进程信息
+                C:\Users\Administrator>docker exec redis ps aux
+                PID   USER     TIME   COMMAND
+                  1   root      2:11  top
+                  2   root      0:00  ps aux
+            这里发现第一个进程id就是 CMD 中执行的 top 命令
+            exec 模式是建议的使用模式，因为当运行任务的进程作为容器中的 1 号进程时，我们可以通过 docker 的 stop 命令优雅的结束容器[1]
+
+            exec 模式的特点是不会通过 shell 执行相关的命令，所以像 $HOME 这样的环境变量是取不到的：
+            FROM ubuntu
+            CMD [ "echo", "$HOME" ] // 这里无法获取 $HOME这个变量
+
+            通过 exec 模式执行 shell 可以获得环境变量：
+            FROM ubuntu
+            CMD [ "sh", "-c", "echo $HOME" ]  [2]
+
+        shell模式:
+            使用 shell 模式时，docker 会以 /bin/sh -c "task command" 的方式执行任务命令。也就是说容器中的 1 号进程不是任务进程而是 bash 进程
+            FROM ubuntu
+            CMD top
+
+            使用镜像:
+                $ docker build -t will/test .           # 这里的 . 是必不可少的
+                $ docker run -idt --name test will/test
+
+            获取容器进程信息:
+                            C:\Users\Administrator>docker exec redis ps aux
+                            PID   USER     TIME   COMMAND
+                              1   root      2:11  /bin/sh -c top
+                              7   root      0:00  top
+                              8   root      0:00  ps aux
+            这里发现第一个进程id 是 CMD 中执行的 /bin/sh -c top 命令
+
+    CMD指令:
+        为容器提供默认的执行命令
+        执行方式有三种:
+             1)exec 模式的写法，注意需要使用双引号
+                 语法: CMD ["executable","param1","param2"]
+                     Docker 不是虚拟机，容器内没有后台服务的概念。
+                        - CMD systemctl start nginx
+                     这行被 Docker 理解为：
+                        - CMD ["sh" "-c" "systemctl start nginx"]
+                     对于容器而言，其启动程序就是容器的应用进程，容器就是为了主进程而存在的，主进程退出，容器就失去了存在的意义，从而退出，
+                     其它辅助进程不是它需要关心的东西。
+
+                     正确的做法是直接执行 nginx 这个可执行文件，并且关闭后台守护的方式，使程序在前台运行。
+                        - CMD ["nginx", "-g", "daemon off;"]
+             2)shell 模式的写法
+                语法: CMD command param1 param2
+             3)为ENTRYPOINT 提供默认的参数
+                语法: CMD ["param1","param2"]
+    ENTRYPOINT指令:
+        为容器指定默认执行命令
+        执行方式有两种
+            1)exec 模式的写法，注意需要使用双引号
+            2)shell 模式的写法
+            3) 特殊写法,使用CMD设置的参数
+                由 CMD 指令指定默认的可选参数：
+                FROM ubuntu
+                ENTRYPOINT [ "top", "-b" ]
+                CMD [ "-c" ]
+                使用这段代码构建镜像 will 并不带命令行参数启动容器：
+
+                $ docker run will
+                这时容器中运行的命令为：top -b -c。
+
+                如果我们指定命令行参数：
+                $ docker run will -n 1
+                -n 1 会覆盖 通过 CMD [ "-c" ]指定的参数，容器执行的命令为：top -b -n 1 [3]
+    帮助文档:
+        [0] https://www.ctl.io/developers/blog/post/dockerfile-entrypoint-vs-cmd/
+        [1] https://www.jb51.net/article/124687.htm
+        [2] -c file 检测文件是否是字符设备文件，如果是，则返回true。
+            -e file 检测文件（包括目录）是否存在，如果是，则返回true。
+            -g file检测文件是否设置了SGID位，如果是，则返回true。
+            -b file 检测文件是否是块设备文件，如果是，则返回 true。
+        [3] top [-] [d delay] [q] [c] [S] [s] [i] [n] [b]
+            # top -c   // 显示完整命令
+            # top -b   // 以批处理模式显示程序信息
+            $ top -n 1 // 表示更新一次后终止更新显示
