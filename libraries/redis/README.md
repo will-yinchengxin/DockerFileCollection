@@ -11,3 +11,7 @@ library / redis
 * 监听端口: `6379`
 * 启动命令: `redis-server`
 
+#### 创建命令
+``docker build -t redis:5.0 .``
+
+
